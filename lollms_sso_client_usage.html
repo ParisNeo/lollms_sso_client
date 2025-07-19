@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LoLLMs SSO Client Demo</title>
+    <script src="lollms_sso_client.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 2em; line-height: 1.6; }
+        .container { max-width: 600px; margin: auto; }
+        button { font-size: 1em; padding: 0.5em 1em; cursor: pointer; }
+        #userInfo { background-color: #f0f0f0; padding: 1em; border-radius: 5px; white-space: pre-wrap; font-family: monospace; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>LoLLMs SSO Client Demo</h1>
+        
+        <div id="login-view">
+            <p>You are not logged in.</p>
+            <button id="login-button">Login with LoLLMs</button>
+        </div>
+
+        <div id="user-view" class="hidden">
+            <p>Welcome! You are logged in.</p>
+            <button id="logout-button">Logout</button>
+            <button id="get-user-info-button">Get User Info</button>
+            <h3>User Information:</h3>
+            <pre id="userInfo">Click the button above to fetch your info.</pre>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Configuration ---
+            // IMPORTANT: Replace these values with your actual LoLLMs URL and App Name.
+            const lollmsUrl = 'http://localhost:9642'; // Your LoLLMs server URL
+            const appName = 'My Test App';            // The name of your app configured in LoLLMs
+
+            const ssoClient = new LollmsSSOClient({
+                lollmsUrl: lollmsUrl,
+                appName: appName,
+            });
+
+            // --- UI Elements ---
+            const loginView = document.getElementById('login-view');
+            const userView = document.getElementById('user-view');
+            const loginButton = document.getElementById('login-button');
+            const logoutButton = document.getElementById('logout-button');
+            const getUserInfoButton = document.getElementById('get-user-info-button');
+            const userInfoPre = document.getElementById('userInfo');
+
+            // --- Functions ---
+            function updateUI() {
+                if (ssoClient.isAuthenticated()) {
+                    loginView.classList.add('hidden');
+                    userView.classList.remove('hidden');
+                } else {
+                    loginView.classList.remove('hidden');
+                    userView.classList.add('hidden');
+                    userInfoPre.textContent = 'Click the button above to fetch your info.';
+                }
+            }
+
+            // --- Event Listeners ---
+            loginButton.addEventListener('click', () => {
+                ssoClient.login();
+            });
+
+            logoutButton.addEventListener('click', () => {
+                ssoClient.logout();
+                updateUI();
+            });
+
+            getUserInfoButton.addEventListener('click', async () => {
+                userInfoPre.textContent = 'Fetching...';
+                try {
+                    const userData = await ssoClient.introspect();
+                    userInfoPre.textContent = JSON.stringify(userData, null, 2);
+                } catch (error) {
+                    userInfoPre.textContent = `Error: ${error.message}`;
+                    // The UI will be updated by the introspection logic if the token is invalid
+                    updateUI(); 
+                }
+            });
+
+            // --- Initialization ---
+            // This code should run on your application's redirect URI page.
+            const token = ssoClient.handleRedirect();
+            if (token) {
+                console.log('Successfully handled redirect and stored token.');
+            }
+            
+            updateUI();
+        });
+    </script>
+</body>
+</html>
