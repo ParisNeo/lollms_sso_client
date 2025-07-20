@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vanilla JS SSO App</title>
+    <script src="/static/lollms_sso_client.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 2em; line-height: 1.6; background: #f9fafb; color: #111827;}
+        .container { max-width: 600px; margin: auto; background: white; padding: 2em; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        button { font-size: 1em; padding: 0.5em 1em; cursor: pointer; border-radius: 6px; border: 1px solid transparent; }
+        .btn-primary { background-color: #2563eb; color: white; }
+        .btn-secondary { background-color: #e5e7eb; color: #1f2937; }
+        textarea { width: 100%; padding: 0.5em; border-radius: 6px; border: 1px solid #d1d5db; min-height: 80px; }
+        #status { margin-top: 1em; padding: 0.5em; border-radius: 4px; }
+        .status-success { background-color: #d1fae5; color: #065f46; }
+        .status-error { background-color: #fee2e2; color: #991b1b; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vanilla JS SSO Example</h1>
+        
+        <div id="logged-out-view">
+            <p>You are not logged in.</p>
+            <button id="login-button" class="btn-primary">Login with LoLLMs</button>
+        </div>
+
+        <div id="logged-in-view" class="hidden">
+            <p id="welcome-message">Welcome!</p>
+            <div style="margin-top: 1em;">
+                <label for="note-input">Enter a note to save:</label>
+                <textarea id="note-input" placeholder="My secret note..."></textarea>
+                <button id="save-note-button" class="btn-primary" style="margin-top: 0.5em;">Save Note</button>
+            </div>
+            <hr style="margin: 1.5em 0;">
+            <button id="logout-button" class="btn-secondary">Logout</button>
+        </div>
+        <div id="status" class="hidden"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            // --- Configuration ---
+            const lollmsUrl = 'http://localhost:9642';
+            const appName = 'My Test App';
+
+            const ssoClient = new LollmsSSOClient({ lollmsUrl, appName });
+
+            // --- UI Elements ---
+            const loggedOutView = document.getElementById('logged-out-view');
+            const loggedInView = document.getElementById('logged-in-view');
+            const loginButton = document.getElementById('login-button');
+            const logoutButton = document.getElementById('logout-button');
+            const saveNoteButton = document.getElementById('save-note-button');
+            const noteInput = document.getElementById('note-input');
+            const welcomeMessage = document.getElementById('welcome-message');
+            const statusDiv = document.getElementById('status');
+
+            // --- Functions ---
+            const showStatus = (message, isError = false) => {
+                statusDiv.textContent = message;
+                statusDiv.className = isError ? 'status-error' : 'status-success';
+                setTimeout(() => { statusDiv.className = 'hidden'; }, 3000);
+            };
+
+            const updateUI = async () => {
+                if (ssoClient.isAuthenticated()) {
+                    loggedOutView.classList.add('hidden');
+                    loggedInView.classList.remove('hidden');
+                    try {
+                        const userData = await ssoClient.introspect();
+                        welcomeMessage.textContent = `Welcome, ${userData.user_info.username}!`;
+                    } catch (error) {
+                        showStatus(`Session invalid: ${error.message}`, true);
+                        ssoClient.logout();
+                        updateUI(); // Re-render UI in logged-out state
+                    }
+                } else {
+                    loggedOutView.classList.remove('hidden');
+                    loggedInView.classList.add('hidden');
+                }
+            };
+            
+            const handleSaveNote = async () => {
+                const note = noteInput.value;
+                if (!note.trim()) {
+                    showStatus("Note cannot be empty.", true);
+                    return;
+                }
+
+                const token = ssoClient.getToken();
+                const formData = new FormData();
+                formData.append('note', note);
+
+                try {
+                    const response = await fetch('/api/save_note', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData,
+                    });
+                    const result = await response.json();
+                    if (!response.ok) throw new Error(result.detail);
+                    
+                    showStatus(result.message);
+                    noteInput.value = '';
+                } catch (error) {
+                    showStatus(`Error saving note: ${error.message}`, true);
+                }
+            };
+
+
+            // --- Event Listeners ---
+            loginButton.addEventListener('click', () => ssoClient.login());
+            logoutButton.addEventListener('click', () => {
+                ssoClient.logout();
+                updateUI();
+            });
+            saveNoteButton.addEventListener('click', handleSaveNote);
+
+            // --- Initialization ---
+            ssoClient.handleRedirect();
+            await updateUI();
+        });
+    </script>
+</body>
+</html>
