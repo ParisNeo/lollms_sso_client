@@ -2,30 +2,34 @@
 
 A lightweight, dependency-free JavaScript client library to easily integrate third-party web applications with the LoLLMs Single Sign-On (SSO) service.
 
-## Features
+## How It Works (The SSO Flow)
 
--   Simple initialization.
--   Handles redirection to and from the LoLLMs login page.
--   Manages SSO token storage in `localStorage`.
--   Provides a method to securely verify the token and fetch user data.
--   Logs the user out of the client application.
+This library simplifies a secure authentication flow similar to OAuth2. The client application (your app) never handles user passwords or the SSO secret.
+
+1.  **Redirect to LoLLMs**: Your application redirects the user to the LoLLMs login page.
+2.  **User Login & Authorization**: The user logs into their LoLLMs account and authorizes your application to access their information.
+3.  **Redirect Back with Token**: LoLLMs redirects the user back to your application's specified "Redirect URI" with a short-lived, single-use token in the URL.
+4.  **Token Validation**: Your application's frontend captures the token from the URL using this library.
+5.  **Fetch User Info**: Your application uses the library's `introspect()` method. This method securely sends the token to the LoLLMs backend, which validates it and returns the authorized user data.
+6.  **Session Management**: Your application can now use the returned user data to create its own session, log the user in, and update the UI.
 
 ## 1. Setup in LoLLMs
 
 Before using this library, you must configure your application within your LoLLMs instance:
 
-1.  Navigate to **Settings -> Services** (if you are a regular user) or **Admin Panel -> Services** (if you are an administrator setting up a system-wide app).
+1.  Navigate to **Settings -> Services** (for personal apps) or **Admin Panel -> Services** (for system-wide apps).
 2.  Add or Edit an Application.
 3.  Set the **Authentication Type** to `LoLLMs SSO`.
-4.  Fill in the **Redirect URI**. This is the exact URL in your application where LoLLMs will send the user back after they log in (e.g., `https://myapp.com/auth/callback`). This page must include this SSO client library.
-5.  Select the user information your application requires (e.g., Email, First Name).
-6.  If no **SSO Secret** exists, click `Generate Secret`. **Copy this secret immediately** and store it securely in your application's backend. You will not be able to see it again.
+4.  A unique **Client ID** will be generated from the application name (e.g., `my_test_app`). You will need this for the client library.
+5.  Fill in the **Redirect URI**. This is the exact URL in your application where LoLLMs will send the user back after they log in (e.g., `https://myapp.com/auth/callback`). This page must use this SSO client library to handle the redirect.
+6.  Select the user information your application requires (e.g., Email, First Name).
+7.  Click **Save Changes**. The SSO secret is managed by the LoLLMs backend and is **not required** by this client library.
 
 ## 2. Integration into Your Application
 
 ### Step 1: Include the Library
 
-Download `lollms_sso_client.js` and include it in your web page.
+Download `lollms_sso_client.js` from the `lollms_sso_client/` directory and include it in your web page.
 
 ```html
 <script src="path/to/lollms_sso_client.js"></script>
@@ -33,26 +37,27 @@ Download `lollms_sso_client.js` and include it in your web page.
 
 ### Step 2: Initialize the Client
 
-Create a new instance of the `LollmsSSOClient` with your LoLLMs server URL and your application's name.
+Create a new instance of `LollmsSSOClient` with your LoLLMs server URL and your application's **Client ID**.
 
 ```javascript
 const ssoClient = new LollmsSSOClient({
     lollmsUrl: 'http://localhost:9642', // The URL of your LoLLMs instance
-    appName: 'My Test App',             // The name of your app as configured in LoLLMs
+    clientId: 'my_test_app',            // The Client ID of your app from LoLLMs
 });
 ```
 
 ### Step 3: Handle the Login Flow
 
-1.  **Triggering Login:** Create a "Login with LoLLMs" button. When clicked, call the `login()` method. This will redirect the user to LoLLMs.
+1.  **Triggering Login**: Create a "Login with LoLLMs" button. When clicked, call the `login()` method.
 
     ```javascript
+    // In your main login page script
     document.getElementById('login-button').addEventListener('click', () => {
         ssoClient.login();
     });
     ```
 
-2.  **Handling the Redirect:** On the page specified as your **Redirect URI**, you must call `handleRedirect()`. This method will check the URL for a token, save it to `localStorage`, and clean the URL.
+2.  **Handling the Redirect**: On the page specified as your **Redirect URI**, you must call `handleRedirect()`. This method checks the URL for a token, saves it to `localStorage`, and cleans the URL.
 
     ```javascript
     // Place this code on your redirect page (e.g., /auth/callback)
@@ -60,55 +65,60 @@ const ssoClient = new LollmsSSOClient({
         const token = ssoClient.handleRedirect();
         if (token) {
             console.log("Login successful! Token stored.");
-            // Now you can redirect to the main part of your app, update the UI, etc.
+            // Now you can verify the token and then redirect to the main part of your app.
             window.location.href = '/dashboard'; 
         }
     });
     ```
 
-### Step 4: Accessing User Data
+### Step 4: Verify Token and Access User Data
 
-Once the user is logged in, you can verify their session and get their information using the `introspect()` method. This method should be called from your application's backend for maximum security, but can be called from the frontend for simplicity.
-
-The `introspect` method communicates with the LoLLMs server, validates the token using the shared SSO secret, and returns the user's data.
+After the redirect, you have a token. Use `introspect()` to securely verify it with the LoLLMs server and get the user's information.
 
 ```javascript
-async function fetchUserInfo() {
+// In your main application logic (e.g., on your dashboard page)
+async function fetchAndDisplayUserInfo() {
     if (!ssoClient.isAuthenticated()) {
-        console.log("User is not logged in.");
+        console.log("User is not logged in. Redirecting to login.");
+        // Redirect to your app's login page
+        window.location.href = '/login.html';
         return;
     }
 
     try {
-        const userData = await ssoClient.introspect();
-        console.log("User is valid:", userData);
-        // `userData.user_info` will contain the shared data (e.g., email, first_name)
-        document.getElementById('welcome-message').textContent = `Welcome, ${userData.user_info.username}!`;
+        const introspectionData = await ssoClient.introspect();
+        console.log("User is valid:", introspectionData);
+        // `introspectionData.user_info` contains the shared data (e.g., username, email)
+        document.getElementById('welcome-message').textContent = `Welcome, ${introspectionData.user_info.username}!`;
     } catch (error) {
         console.error("Authentication check failed:", error.message);
-        // The token is invalid or expired. The library automatically logs the user out.
-        // Update your UI to show the login screen again.
+        // The token is invalid or expired. The library automatically calls logout().
+        // Redirect back to your login page.
+        window.location.href = '/login.html';
     }
 }
+
+fetchAndDisplayUserInfo();
 ```
 
 ### Step 5: Handling Logout
 
-To log a user out of your application, simply call the `logout()` method. This removes their token from `localStorage`.
+To log a user out of your application, call `logout()`. This removes their token from `localStorage`.
 
 ```javascript
 document.getElementById('logout-button').addEventListener('click', () => {
     ssoClient.logout();
-    // Update your UI to show the login screen.
+    // Redirect to your login page
+    window.location.href = '/login.html';
 });
 ```
 
 ## API Reference
 
--   `new LollmsSSOClient({ lollmsUrl, appName, tokenStorageKey? })`
-    -   Creates a new client instance.
+-   `new LollmsSSOClient({ lollmsUrl, clientId, tokenStorageKey? })`
+    -   Creates a new client instance. `clientId` must match the one in your LoLLMs app configuration.
 -   `.login()`
-    -   Redirects the browser to the LoLLMs login page.
+    -   Redirects the browser to the LoLLMs login page for your `clientId`.
 -   `.handleRedirect()`
     -   Processes the URL after returning from LoLLMs. Call this on your redirect page. Returns the token if found.
 -   `.setToken(token)`
@@ -120,4 +130,6 @@ document.getElementById('logout-button').addEventListener('click', () => {
 -   `.logout()`
     -   Removes the token from storage.
 -   `.introspect()`
-    -   Async method. Validates the token with the LoLLMs server. Returns a promise that resolves with user data or rejects with an error.
+    -   Async method. Securely validates the token with the LoLLMs server. Returns a promise that resolves with user data or rejects with an error.
+
+```
