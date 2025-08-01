@@ -36,11 +36,11 @@
             // --- Configuration ---
             // IMPORTANT: Replace these values with your actual LoLLMs URL and App Name.
             const lollmsUrl = 'http://localhost:9642'; // Your LoLLMs server URL
-            const appName = 'My Test App';            // The name of your app configured in LoLLMs
+            const clientId = 'My Test App';            // The name of your app configured in LoLLMs
 
             const ssoClient = new LollmsSSOClient({
                 lollmsUrl: lollmsUrl,
-                appName: appName,
+                clientId: clientId,
             });
 
             // --- UI Elements ---

@@ -41,7 +41,7 @@ You can use the library by installing it via NPM or by directly including it fro
 
     const ssoClient = new LollmsSSOClient({
         lollmsUrl: 'http://localhost:9642',
-        appName: 'My Test App',
+        clientId: 'My Test App',
     });
 
     // Your application logic...
@@ -56,7 +56,7 @@ Include the script in your HTML file. This is the easiest way to get started.
 <script>
     const ssoClient = new LollmsSSOClient({
         lollmsUrl: 'http://localhost:9642',
-        appName: 'My Test App',
+        clientId: 'My Test App',
     });
     
     // Your application logic...
@@ -130,7 +130,7 @@ document.getElementById('logout-button').addEventListener('click', () => {
 
 ## API Reference
 
--   `new LollmsSSOClient({ lollmsUrl, appName, tokenStorageKey? })`
+-   `new LollmsSSOClient({ lollmsUrl, clientId, tokenStorageKey? })`
     -   Creates a new client instance.
 -   `.login()`
     -   Redirects the browser to the LoLLMs login page.

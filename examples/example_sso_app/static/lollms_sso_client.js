@@ -3,15 +3,15 @@ class LollmsSSOClient {
      * Initializes the SSO client.
      * @param {object} config - The configuration object.
      * @param {string} config.lollmsUrl - The base URL of the LoLLMs instance (e.g., 'https://lollms.instance.com').
-     * @param {string} config.appName - The name of your application, as configured in LoLLMs.
+     * @param {string} config.clientId - The name of your application, as configured in LoLLMs.
      * @param {string} [config.tokenStorageKey='lollms_sso_token'] - The localStorage key for the token.
      */
-    constructor({ lollmsUrl, appName, tokenStorageKey = 'lollms_sso_token' }) {
-        if (!lollmsUrl || !appName) {
-            throw new Error('lollmsUrl and appName are required configuration properties.');
+    constructor({ lollmsUrl, clientId, tokenStorageKey = 'lollms_sso_token' }) {
+        if (!lollmsUrl || !clientId) {
+            throw new Error('lollmsUrl and clientId are required configuration properties.');
         }
         this.lollmsUrl = lollmsUrl.replace(/\/$/, ''); // Remove trailing slash if present
-        this.appName = appName;
+        this.clientId = clientId;
         this.tokenStorageKey = tokenStorageKey;
     }
 
@@ -19,7 +19,7 @@ class LollmsSSOClient {
      * Redirects the user to the LoLLMs SSO login page for the configured application.
      */
     login() {
-        const ssoUrl = `${this.lollmsUrl}/app/${encodeURIComponent(this.appName)}`;
+        const ssoUrl = `${this.lollmsUrl}/app/${encodeURIComponent(this.clientId)}`;
         window.location.href = ssoUrl;
     }
 

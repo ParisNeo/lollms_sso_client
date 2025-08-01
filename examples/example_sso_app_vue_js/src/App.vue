@@ -4,9 +4,9 @@ import LollmsSSOClient from '@lollms/sso-client';
 
 // --- Configuration ---
 const lollmsUrl = 'http://localhost:9642';
-const appName = 'My Test App';
+const clientId = 'My Test App';
 
-const ssoClient = new LollmsSSOClient({ lollmsUrl, appName });
+const ssoClient = new LollmsSSOClient({ lollmsUrl, clientId });
 
 // --- Component State ---
 const isAuthenticated = ref(false);

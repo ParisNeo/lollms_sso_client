@@ -44,9 +44,9 @@
         document.addEventListener('DOMContentLoaded', async () => {
             // --- Configuration ---
             const lollmsUrl = 'http://localhost:9642';
-            const appName = 'My Test App';
+            const clientId = 'My Test App';
 
-            const ssoClient = new LollmsSSOClient({ lollmsUrl, appName });
+            const ssoClient = new LollmsSSOClient({ lollmsUrl, clientId });
 
             // --- UI Elements ---
             const loggedOutView = document.getElementById('logged-out-view');
